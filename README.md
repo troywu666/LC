@@ -34,7 +34,7 @@ y = df_clean.loan_status
 df_clean.drop('loan_status', axis = 1, inplace = True)
 ```
 
-
+- 把已经还款和正在还款的客户定义为”好“客户，把逾期和已有征信危机的客户定义为“坏”客户
 
 ## 4、数据观察及预处理
 
@@ -66,7 +66,105 @@ for i in sorted(missing_col_nums, key = lambda x: x[1], reverse = True):
         df_clean.drop(i[0], axis = 1, inplace = True)
 ```
 
-### 4.3、将object型数据取值个数超过50的特征删除
+### 4.3、部分object数据处理为数值型
+
+```
+df_clean.emp_length.fillna(0, inplace = True)
+df_clean.emp_length.replace(to_replace = '[^0-9]+', value = '', inplace = True, regex = True)
+df_clean.emp_length = df_clean.emp_length.astype(int)
+
+#将百分比数据处理成int型
+df_clean.revol_util = df_clean.revol_util.str.replace('%', "").astype(float)
+df_clean.int_rate = df_clean.int_rate.str.replace('%','').astype(float)
+```
+
+### 4.4、删除贷后特征
+
+```python
+df_clean.drop(['out_prncp','out_prncp_inv','total_pymnt',
+         'total_pymnt_inv','total_rec_prncp', 'grade', 'sub_grade'] ,1, inplace=True)
+df_clean.drop(['total_rec_int','total_rec_late_fee',
+         'recoveries','collection_recovery_fee',
+         'collection_recovery_fee' ],1, inplace=True)
+df_clean.drop(['last_pymnt_d','last_pymnt_amnt',
+         'next_pymnt_d','last_credit_pull_d'],1, inplace=True)
+df_clean.drop(['policy_code'],1, inplace=True)
+```
+
+### 4.5、数值型特征分析
+
+#### 4.5.1、删除标准差小于1.5的数值型特征
+
+```python
+df_clean.select_dtypes(include = ['float']).describe().T.sort_values(by = 'std')
+
+float_col = list(df_clean.select_dtypes(include = ['float']).columns)
+for col in float_col:
+    if df_clean[col].std() <= 1.5:
+        df_clean.drop(col, axis = 1, inplace = True)
+```
+
+#### 4.5.2、检查是否有特征完全与label不相关
+
+```python
+corr_target = []
+for col in df_clean.select_dtypes(exclude = ['object']).columns:
+    corr = np.corrcoef(df_clean[col].fillna(df_clean[col].median()), y)[0][1]
+    corr_target.append((col, corr))
+
+for i in sorted(corr_target, key = lambda x: abs(x[1]), reverse = False):
+    print(i)
+```
+
+```python
+df_clean['label'] = y
+plt.figure(figsize = (32, 24))
+sns.heatmap(df_clean.corr().round(5), annot = True, cmap = 'RdBu')
+df_clean.drop('label', axis = 1, inplace = True)
+```
+
+![png](README\label_heatmap.png)
+
+- 通过图像暂未发现有***完全不相关***的特征
+
+#### 4.5.3、相关性较强特征剔除
+
+```
+cor = df_clean.corr()
+cor.loc[ : , : ] = np.tril(df_clean.corr().round(5), k = -1)
+cor = cor.stack()
+cor_set = set()
+for index in cor[(cor > 0.8)| (cor < -0.8].index:
+    cor_set.add(index[0])
+for col in cor_set:
+    df_clean.drop(col, axis = 1, inplace = True)
+    
+plt.figure(figsize = (32, 24))
+sns.heatmap(df_clean.select_dtypes(exclude = ['object']).corr().round(2), / 
+annot = True, cmap = 'RdBu')
+```
+
+![png](README\数值型特征_heatmap.png)
+
+#### 4.5.4、数据分布可视化
+
+```python
+k = 0
+plt.figure(figsize = (32, 24))
+for col in df_clean.select_dtypes(exclude = ['object']).columns:
+    k += 1
+    plt.subplot(7, 10, k)
+    plt.ylabel('Counts')
+    sns.distplot(df_clean[col].dropna(), kde = False)
+```
+
+![png](README\数值型数据分布.png)
+
+- 数值型数据分布不是正态分布，后续填充空值时使用中值进行填充，保证分布不被改变
+
+### 4.6、Object型特征分析
+
+#### 4.6.1、将object型数据取值个数超过50的特征删除
 
 ```python
 object_list = []
@@ -79,62 +177,73 @@ for i in sorted(object_list, key = lambda x: x[1], reverse = True):
     if i[1] >= 50:
         object_list.remove(i)
         object_col.remove(i[0])
-        df_clean.drop(i[0], axis = 1, inplace = True)
+        df_clean.drop(i[0], axis = 1, inplace = True)### 4.10、总体缺失数据的相关性分析
 ```
 
-### 4.4、部分object数据处理为数值型
-
-```
-df_clean.emp_length.fillna(0, inplace = True)
-df_clean.emp_length.replace(to_replace = '[^0-9]+', value = '', inplace = True, regex = True)
-df_clean.emp_length = df_clean.emp_length.astype(int)
-
-#将百分比数据处理成int型
-df_clean.revol_util = df_clean.revol_util.str.replace('%', "").astype(float)
-df_clean.int_rate = df_clean.int_rate.str.replace('%','').astype(float)
-```
-
-### 4.5、删除贷后特征
+#### 4.6.2、数据分布可视化
 
 ```python
-df.drop(['out_prncp','out_prncp_inv','total_pymnt',
-         'total_pymnt_inv','total_rec_prncp', 'grade', 'sub_grade'] ,1, inplace=True)
-df.drop(['total_rec_int','total_rec_late_fee',
-         'recoveries','collection_recovery_fee',
-         'collection_recovery_fee' ],1, inplace=True)
-df.drop(['last_pymnt_d','last_pymnt_amnt',
-         'next_pymnt_d','last_credit_pull_d'],1, inplace=True)
-df.drop(['policy_code'],1, inplace=True)
+df_clean_object = df_clean.select_dtypes(include = ['object']).copy()
+df_clean_object.fillna('missing', inplace = True)
+
+k = 0
+plt.figure(figsize = (64, 12))
+for col in df_clean_object.columns:
+    val = df_clean_object[col].value_counts()
+    k += 1
+    plt.subplot(4, 3, k)
+    names = list(val.index)
+    counts = list(val.values)
+    data = pd.DataFrame({'names': names, 'counts': counts})
+    plt.title(col)
+    sns.barplot(x = names, y = counts, data = data)
 ```
 
-### 4.6、删除方差小于3的数值型特征
+![png](README\object型数据分布.png)
 
 ```python
-df_clean.select_dtypes(include = ['float']).describe().T.sort_values(by = 'std')
-
-float_col = list(df_clean.select_dtypes(include = ['float']).columns)
-for col in float_col:
-    if df_clean[col].std() <= 3:
-        df_clean.drop(col, axis = 1, inplace = True)
+lean.drop(['application_type', 'pymnt_plan'], axis = 1, inplace = True)
 ```
 
-### 4.7、相关性较强特征剔除
+### 4.7、总缺失数据的相关性可视化
+
+![png](README\missing_heatmap.png)
+
+- mo_sin_old_il_acct与mths_since_rcnt_il的缺失情况完全正相关，后续需要为其构建特征
+- mths_since_recent_bc与bc_open_to_buy的缺失情况正相关，后续需要为其构建特征
+
+## 5、特征处理
+
+### 5.1、特征构建
+
+- 根据数据的缺失情况构建新特征
 
 ```python
-cor = df_clean.corr()
-cor.loc[ : , : ] = np.tril(df_clean.corr().round(5), k = -1)
-cor = cor.stack()
-cor_set = set()
-for index in cor[(cor > 0.6)].index:
-    cor_set.add(index[0])
-for col in cor_set:
-    df_clean.drop(col, axis = 1, inplace = True)
+df_clean['col_miss_1'] = np.zeros(df_clean.shape[0])
+df_clean['col_miss_2'] = np.zeros(df_clean.shape[1])
+
+df_clean.loc[df_clean['mo_sin_old_il_acct'].isnull(), 'col_miss_1'] += 1
+df_clean.loc[df_clean['mths_since_rcnt_il'].isnull(), 'col_miss_1'] += 1
+df_clean.loc[df_clean['mths_since_recent_bc'].isnull(), 'col_miss_2'] += 1
+df_clean.loc[df_clean['bc_open_to_buy'].isnull(), 'col_miss_2'] += 1
 ```
 
-### 4.8、缺失数据的相关性分析
+### 5.2、空值填充
 
-![png](E:\Data Analyse\Course\Practice\风控\README\missing_heatmap.png)
+#### 5.2.1、Object型特征空值填充
 
-- mo_sin_old_il_acct与mths_since_rcnt_il的缺失情况完全正相关，后续需要为其构建一个特征
+```python
+df_clean = pd.get_dummies(df_clean)
+```
 
-### 4.9、
+#### 5.2.2、数值型特征空值填充
+
+```python
+from sklearn.impute import SimpleImputer as imputer
+
+impute = imputer(strategy = 'median')
+df_clean.iloc[ :, : ] = impute.fit_transform(df_clean)
+```
+
+## 6、构建模型
+
