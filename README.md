@@ -228,15 +228,13 @@ df_clean.loc[df_clean['mths_since_recent_bc'].isnull(), 'col_miss_2'] += 1
 df_clean.loc[df_clean['bc_open_to_buy'].isnull(), 'col_miss_2'] += 1
 ```
 
-### 5.2、空值填充
-
-#### 5.2.1、Object型特征空值填充
+### 5.2、字符型数据Onehotencoding
 
 ```python
 df_clean = pd.get_dummies(df_clean)
 ```
 
-#### 5.2.2、数值型特征空值填充
+### 5.3、数值型特征空值填充
 
 ```python
 from sklearn.impute import SimpleImputer as imputer
@@ -247,3 +245,108 @@ df_clean.iloc[ :, : ] = impute.fit_transform(df_clean)
 
 ## 6、构建模型
 
+### 6.1、划分训练集和测试集
+
+```python
+from sklearn.model_selection import train_test_split as tts
+
+X_train, X_test, y_train, y_test = tts(df_clean, y, test_size = 0.2, 
+                                       random_state = 2019, stratify = y)
+```
+
+### 6.2、使用xgboost.cv进行调参
+
+```python
+import xgboost as xgb
+
+dtrain = xgb.DMatrix(X_train, y_train)
+dtest = xgb.DMatrix(X_test, y_test)
+
+param = {'verbosity': 1,
+         'objective': 'binary:logistic',
+         'stratified': True,
+         'max_depth': 1,
+         'subsample': 0.8,
+         'eta': 0.1,
+         'gamma': 0,
+         'lambda': 4,
+         'alpha': 0,
+         'scale_pos_weight': 20,
+         'min_child_weight': 5,
+         'max_delta_step': 0.5,
+         'base_score': 0.05,
+         'colsample_bytree': 0.6,
+         'colsample_bynode': 0.4,
+         'colsample_bylevel': 0.4,
+         'seed': 2019,
+         'eval_metric': 'auc',
+         'nfold': 4}
+num_round = 1000
+pred_cv = xgb.cv(param, dtrain, num_round, nfold = 4, verbose_eval = False)
+print(pred_cv.tail())
+
+plt.figure(figsize = (12, 6))
+sns.lineplot(data = pred_cv.drop(['train-error-std', 'test-error-std'], axis = 1))
+```
+
+![png](README\cv_score.png)
+
+将num_round设为150
+
+### 6.3、按调好的参数进行训练和预测
+
+```python
+dtrain = xgb.DMatrix(X_train,  y_train)
+dtest = xgb.DMatrix(X_test, y_test)
+
+param = {'verbosity': 1,
+         'objective': 'binary:logistic',
+         'stratified': True,
+         'max_depth': 1,
+         'subsample': 0.8,
+         'eta': 0.1,
+         'gamma': 0,
+         'lambda': 4,
+         'alpha': 0,
+         'scale_pos_weight': 20,
+         'min_child_weight': 5,
+         'max_delta_step': 0.5,
+         'base_score': 0.05,
+         'colsample_bytree': 0.6,
+         'colsample_bynode': 0.4,
+         'colsample_bylevel': 0.4,
+         'seed': 2019,
+         'eval_metric': 'auc',
+         'nfold': 4}
+num_round = 150
+
+bst = xgb.train(param, dtrain, num_round)
+
+pred = bst.predict(dtest)
+```
+
+- 使用scale_pos_weight和base_score可以减少迭代次数
+
+### 6.4、计算KS系数
+
+```python
+y_pred = pred.copy()
+y_pred[y_pred > 0.5] = 1
+y_pred[y_pred != 1] = 0
+
+print('AUC is ', auc(y_test, y_pred))
+print('Recall_rate is ', recall(y_test, y_pred))
+print('Logloss is', log_loss(y_test, pred))
+
+fpr, tpr, threadshold = roc_curve(y_test, pred)
+ks = max(tpr - fpr)
+print('KS系数为', ks)
+
+plt.figure(figsize = (16,12))
+sns.lineplot(data = pd.DataFrame({'fpr': fpr, 'tpr': tpr, 'max_ks': tpr - fpr},
+                                 index = threadshold))
+```
+
+![png](README\ks_score.png)
+
+项目结果：KS系数为0.42
