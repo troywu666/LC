@@ -18,7 +18,7 @@
 
 - 在金融领域，容易出现较严重的正负样本不平衡问题，且特征容易出现共线性的情况，因而使用GBRT作为本次问题的模型
 
-## 3、定义taget
+## 3、定义target
 
 ```python
 df_clean.loan_status.replace('Fully Paid', 1, inplace = True)
