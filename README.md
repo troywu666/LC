@@ -123,7 +123,7 @@ sns.heatmap(df_clean.corr().round(5), annot = True, cmap = 'RdBu')
 df_clean.drop('label', axis = 1, inplace = True)
 ```
 
-![png](README\label_heatmap.png)
+![png](README/label_heatmap.png)
 
 - 通过图像暂未发现有***完全不相关***的特征
 
@@ -144,7 +144,7 @@ sns.heatmap(df_clean.select_dtypes(exclude = ['object']).corr().round(2), /
 annot = True, cmap = 'RdBu')
 ```
 
-![png](README\数值型特征_heatmap.png)
+![png](README/数值型特征_heatmap.png)
 
 #### 4.5.4、数据分布可视化
 
@@ -158,7 +158,7 @@ for col in df_clean.select_dtypes(exclude = ['object']).columns:
     sns.distplot(df_clean[col].dropna(), kde = False)
 ```
 
-![png](README\数值型数据分布.png)
+![png](README/数值型数据分布.png)
 
 - 数值型数据分布不是正态分布，后续填充空值时使用中值进行填充，保证分布不被改变
 
@@ -199,7 +199,7 @@ for col in df_clean_object.columns:
     sns.barplot(x = names, y = counts, data = data)
 ```
 
-![png](README\object型数据分布.png)
+![png](README/object型数据分布.png)
 
 ```python
 lean.drop(['application_type', 'pymnt_plan'], axis = 1, inplace = True)
@@ -207,7 +207,7 @@ lean.drop(['application_type', 'pymnt_plan'], axis = 1, inplace = True)
 
 ### 4.7、总缺失数据的相关性可视化
 
-![png](README\missing_heatmap.png)
+![png](README/missing_heatmap.png)
 
 - mo_sin_old_il_acct与mths_since_rcnt_il的缺失情况完全正相关，后续需要为其构建特征
 - mths_since_recent_bc与bc_open_to_buy的缺失情况正相关，后续需要为其构建特征
@@ -289,7 +289,7 @@ plt.figure(figsize = (12, 6))
 sns.lineplot(data = pred_cv.drop(['train-error-std', 'test-error-std'], axis = 1))
 ```
 
-![png](README\cv_score.png)
+![png](README/cv_score.png)
 
 将num_round设为150
 
@@ -347,6 +347,6 @@ sns.lineplot(data = pd.DataFrame({'fpr': fpr, 'tpr': tpr, 'max_ks': tpr - fpr},
                                  index = threadshold))
 ```
 
-![png](README\ks_score.png)
+![png](README/ks_score.png)
 
 项目结果：KS系数为0.42
