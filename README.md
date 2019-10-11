@@ -21,13 +21,14 @@
 ## 3、定义target
 
 ```python
-df_clean.loan_status.replace('Fully Paid', 1, inplace = True)
-df_clean.loan_status.replace('Current', 1, inplace = True)
-df_clean.loan_status.replace('Late (16-30 days)', 0, inplace = True)
-df_clean.loan_status.replace('Late (31-120 days)', 0, inplace = True)
-df_clean.loan_status.replace('Charged Off', 0, inplace = True)
+df_clean.loan_status.replace('Fully Paid', 0, inplace = True)
+df_clean.loan_status.replace('Current', 0, inplace = True)
+df_clean.loan_status.replace('Late (16-30 days)', 1, inplace = True)
+df_clean.loan_status.replace('Late (31-120 days)', 1, inplace = True)
+df_clean.loan_status.replace('Charged Off', 1, inplace = True)
 df_clean.loan_status.replace('In Grace Period', np.nan, inplace = True)
 df_clean.loan_status.replace('Default', np.nan, inplace = True)
+df_clean.loan_status.value_counts(dropna = False)
 
 df_clean.dropna(subset = ['loan_status'], inplace = True)
 y = df_clean.loan_status
